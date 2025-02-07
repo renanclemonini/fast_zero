@@ -9,7 +9,6 @@ readme = "README.md"
 requires-python = ">=3.9,<=3.12.8"
 dependencies = [
     "fastapi[standard] (>=0.115.8,<0.116.0)",
-    "gh (>=0.0.4,<0.0.5)",
 ]
 
 [tool.poetry.group.dev.dependencies]
@@ -17,6 +16,7 @@ pytest = "^8.3.4"
 pytest-cov = "^6.0.0"
 taskipy = "^1.14.1"
 ruff = "^0.9.5"
+gh = "^0.0.4"
 
 [tool.ruff]
 line-length = 79
