@@ -9,6 +9,9 @@ readme = "README.md"
 requires-python = ">=3.9,<=3.12.8"
 dependencies = [
     "fastapi[standard] (>=0.115.8,<0.116.0)",
+    "sqlalchemy (>=2.0.38,<3.0.0)",
+    "pydantic-settings (>=2.7.1,<3.0.0)",
+    "alembic (>=1.14.1,<2.0.0)",
 ]
 
 [tool.poetry.group.dev.dependencies]
@@ -40,7 +43,7 @@ pre_format = 'ruff check --fix'
 format = 'ruff format'
 run = 'fastapi dev fast_zero/app.py'
 run_local = 'fastapi dev fast_zero/app.py --host 0.0.0.0'
-pre_test = 'task lint'
+pre_test = 'task format'
 test = 'pytest -s -x --cov=fast_zero -vv'
 post_test = 'coverage html'
 
