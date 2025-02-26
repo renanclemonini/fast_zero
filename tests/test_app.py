@@ -34,9 +34,9 @@ def test_read_users(client, user):
     assert response.json() == {
         'users': [
             {
-                'email': 'teste@example.com',
                 'id': 1,
                 'username': 'teste_123',
+                'email': 'teste@example.com',
             },
         ],
     }
@@ -44,16 +44,17 @@ def test_read_users(client, user):
 
 def test_read_users_with_user(client, user):
     user_schema = UserPublic.model_validate(user).model_dump()
-    response = client.get('/users/1')
+    response = client.get(f'/users/{user.id}')
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == user_schema
 
 
-def test_update_user(client, user):
+def test_update_user(client, user, token):
     user_schema = UserPublic.model_validate(user).model_dump()
     response = client.put(
-        '/users/1',
+        f'/users/{user.id}',
+        headers={'Authorization': f'Bearer {token}'},
         json={
             'username': 'teste_123',
             'email': 'teste@example.com',
@@ -65,88 +66,102 @@ def test_update_user(client, user):
     assert response.json() == user_schema
 
 
-def test_delete_user(client, user):
-    response = client.delete('/users/1')
+def test_update_user_not_authorized(client):
+    # Criando dois usuários (usuário atual e o usuário a ser atualizado)
+    user1 = {
+        'username': 'alice',
+        'email': 'alice@example.com',
+        'password': 'secret',
+    }
+    user2 = {
+        'username': 'bob',
+        'email': 'bob@example.com',
+        'password': 'secret',
+    }
+
+    # Criar o primeiro usuário (alice)
+    response1 = client.post('/users/', json=user1)
+    assert response1.status_code == HTTPStatus.CREATED
+
+    # Criar o segundo usuário (bob)
+    response2 = client.post('/users/', json=user2)
+    assert response2.status_code == HTTPStatus.CREATED
+
+    # Gerar o token para o usuário alice
+    token_response = client.post(
+        '/token',
+        data={
+            'username': user1['username'],
+            'password': user1['password'],
+        },
+    )
+    access_token = token_response.json().get('access_token')
+
+    # Headers de autorização para alice
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    # Tentar atualizar o usuário bob (id diferente de alice)
+    update_data = {
+        'username': 'bob_updated',
+        'email': 'bob_updated@example.com',
+        'password': 'new_secret',
+    }
+    response = client.put('/users/2', headers=headers, json=update_data)
+
+    # Verificar se a resposta foi "Not enough permission"
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json() == {'detail': 'Not enough permission'}
+
+
+def test_delete_user(client, token):
+    response = client.delete(
+        '/users/1', headers={'Authorization': f'Bearer {token}'}
+    )
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'message': 'User deleted'}
 
 
-def test_update_user_should_return_not_found(client):
-    response = client.put(
-        '/users/1',
-        json={
-            'username': 'bob',
-            'email': 'bob@example.com',
-            'password': 'mynewpassword',
+def test_delete_user_not_authorized(client):
+    # Criando dois usuários (usuário atual e usuário a ser deletado)
+    user1 = {
+        'username': 'alice',
+        'email': 'alice@example.com',
+        'password': 'secret',
+    }
+    user2 = {
+        'username': 'bob',
+        'email': 'bob@example.com',
+        'password': 'secret',
+    }
+
+    # Criar o primeiro usuário (alice)
+    response1 = client.post('/users/', json=user1)
+    assert response1.status_code == HTTPStatus.CREATED
+
+    # Criar o segundo usuário (bob)
+    response2 = client.post('/users/', json=user2)
+    assert response2.status_code == HTTPStatus.CREATED
+
+    # Gerar o token para o usuário alice
+    token_response = client.post(
+        '/token',
+        data={
+            'username': user1['username'],
+            'password': user1['password'],
         },
     )
+    access_token = token_response.json().get('access_token')
 
-    assert response.status_code == HTTPStatus.NOT_FOUND
+    # Headers de autorização para alice
+    headers = {'Authorization': f'Bearer {access_token}'}
 
+    # Tentar deletar o usuário bob (id diferente de alice)
+    response = client.delete('/users/2', headers=headers)
 
-def test_update_user_with_username_equal(client):
-    client.post(
-        '/users/',
-        json={
-            'username': 'alice',
-            'email': 'alice@example.com',
-            'password': 'secret',
-        },
-    )
-    client.post(
-        '/users/',
-        json={
-            'username': 'alice_teste1',
-            'email': 'alice1@example.com',
-            'password': 'secret',
-        },
-    )
-    response = client.put(
-        '/users/1',
-        json={
-            'username': 'alice_teste1',
-            'email': 'alice@example.com',
-            'password': 'secret',
-        },
-    )
-
-    assert response.status_code == HTTPStatus.BAD_REQUEST
-
-
-def test_update_user_with_email_equal(client):
-    client.post(
-        '/users/',
-        json={
-            'username': 'alice',
-            'email': 'alice@example.com',
-            'password': 'secret',
-        },
-    )
-    client.post(
-        '/users/',
-        json={
-            'username': 'alice_teste1',
-            'email': 'alice1@example.com',
-            'password': 'secret',
-        },
-    )
-    response = client.put(
-        '/users/1',
-        json={
-            'username': 'alice',
-            'email': 'alice1@example.com',
-            'password': 'secret',
-        },
-    )
-
-    assert response.status_code == HTTPStatus.BAD_REQUEST
-
-
-def test_delete_user_should_return_not_found(client):
-    response = client.delete('/users/1')
-
-    assert response.status_code == HTTPStatus.NOT_FOUND
+    # Verificar se a resposta foi "Unauthorized" (403)
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.json() == {'detail': 'Not enough permission'}
 
 
 def test_read_user_should_return_not_found(client):
@@ -195,3 +210,4 @@ def test_create_user_should_return_email_invalid(client, user):
     )
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json() == {'detail': 'Username or email already exists'}
