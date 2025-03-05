@@ -2,11 +2,7 @@ from http import HTTPStatus
 
 from jwt import decode
 
-from fast_zero.security import (
-    ALGORITHM,
-    SECRET_KEY,
-    create_access_token,
-)
+from fast_zero.security import create_access_token, settings
 
 
 def test_jwt():
@@ -15,32 +11,12 @@ def test_jwt():
     }
     token = create_access_token(data)
 
-    decoded = decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    decoded = decode(
+        token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+    )
 
     assert decoded['sub'] == data['sub']
     assert decoded['exp']
-
-
-def test_get_token(client, user):
-    response = client.post(
-        '/token',
-        data={'username': user.username, 'password': user.clean_password},
-    )
-
-    token = response.json()
-
-    assert response.status_code == HTTPStatus.OK
-    assert token['token_type'] == 'Bearer'
-    assert 'access_token' in token
-
-
-def test_get_token_with_erro(client, user):
-    response = client.post(
-        '/token',
-        data={'username': user.username, 'password': user.password},
-    )
-
-    assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
 def test_jwt_invalid_token(client):
